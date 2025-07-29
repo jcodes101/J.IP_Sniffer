@@ -49,10 +49,13 @@ cargo run -- -t 100 192.168.0.1
 ```
 
 ## 🧠 Argument Breakdown
-Flag | Description |	Example
--h	Shows the help menu ->	cargo run -- -h
--t	Sets the number of scanning threads ->	cargo run -- -t 50 10.0.0.5
-IP Address	The target IP to scan (v4 or v6) ->	cargo run -- 127.0.0.1
+### Flag | Description | Example
+
++ -h	Shows the help menu ->	cargo run -- -h
+
++ -t	Sets the number of scanning threads ->	cargo run -- -t 50 10.0.0.5
+
++ IP Address	The target IP to scan (v4 or v6) ->	cargo run -- 127.0.0.1
 
 📋 Output
 When scanning, the program will print:
