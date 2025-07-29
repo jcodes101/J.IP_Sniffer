@@ -1,0 +1,112 @@
+ 
+OVERVIEW
+--------
+This Rust CLI tool scans a target IP address for open TCP ports using multithreading. It accepts command-line arguments to specify the IP, number of threads, and provides help information. The program is structured for clarity and robustness, handling argument parsing, error reporting, and concurrent scanning.
+
+NAMESPACES & IMPORTS
+--------------------
+- `std::env`: Used to access command-line arguments via `env::args()`.
+- `std::io::{self, Write}`: For input/output operations, specifically flushing stdout after printing.
+- `std::net::{IpAddr, TcpStream}`: Handles IP address parsing and TCP connections for port scanning.
+- `std::str::FromStr`: Converts string arguments to `IpAddr` type.
+- `std::process`: Manages program exit and error handling.
+- `std::sync::mpsc::{Sender, channel}`: Multi-producer, single-consumer channel for thread communication.
+- `std::thread`: Enables spawning threads for concurrent port scanning.
+
+KEY CONSTANTS
+-------------
+- `MAX: u16 = 65535`: The highest port number to scan (TCP ports range from 0 to 65535).
+
+STRUCTS & ARGUMENT PARSING
+--------------------------
+- `struct Args`: Holds parsed CLI arguments:
+    - `flag: String`: Stores flags like `-h` or `-t`.
+    - `ipaddr: IpAddr`: The target IP address (IPv4 or IPv6).
+    - `threads: u16`: Number of threads to use for scanning.
+- `impl Args`:
+    - `fn new(args: &[String]) -> Result<Args, &'static str>`: Parses CLI arguments, validates them, and constructs an `Args` struct. Handles help and error cases, supports flags for help and thread count.
+
+ARGUMENT LOGIC
+--------------
+- If only an IP is provided, uses default threads (4).
+- If `-h` or `-help` is provided, prints help and exits.
+- If `-t` is provided, expects thread count and IP address (e.g., `-t 100 192.168.1.1`).
+- Handles errors for invalid syntax, too many/few arguments, and invalid IP/thread values.
+
+PORT SCANNING FUNCTION
+----------------------
+- `fn scan(tx: Sender<u16>, start_port: u16, addr: IpAddr, num_threads: u16)`:
+    - Each thread starts scanning from a different port offset.
+    - Attempts to connect to each port; if successful, prints a dot and sends the port number to the main thread.
+    - Skips port 0 and increments by `num_threads` for each iteration.
+    - Stops when remaining ports are fewer than threads.
+
+MAIN FUNCTION
+-------------
+- Collects CLI arguments into a vector.
+- Parses arguments using `Args::new`, handling errors and help requests.
+- Sets up multithreading:
+    - Spawns `num_threads` threads, each running `scan` with a unique starting port.
+    - Uses a channel to collect open ports from threads.
+    - Drops the transmitter in the main thread to close the channel when done.
+- Collects and sorts open ports, then prints them.
+- Prints debug information: all CLI arguments and their vector representation.
+
+USAGE EXAMPLES
+--------------
+- `j_ip_sniffer.exe -h` or `-help`: Shows help message.
+- `j_ip_sniffer.exe -t 100 192.168.1.1`: Scans IP with 100 threads.
+- `j_ip_sniffer.exe 192.168.1.1`: Scans IP with default threads (4).
+- When running with Cargo: `cargo run -- <args>` (the `--` passes arguments to the executable).
+
+HOW IT ALL TIES TOGETHER
+------------------------
+1. **Argument Parsing**: The program starts by parsing CLI arguments, determining the mode (help, thread count, or default scan).
+2. **Threading**: Based on the parsed arguments, it spawns multiple threads to scan ports concurrently, improving speed.
+3. **Channel Communication**: Threads report open ports back to the main thread using a channel, ensuring safe data transfer.
+4. **Output**: The main thread collects, sorts, and displays open ports, providing real-time feedback with dots for each open port.
+5. **Debugging**: Prints all received arguments for transparency and debugging.
+
+KEYWORDS & CONCEPTS
+-------------------
+- **Flag**: Command-line option (e.g., `-h`, `-t`).
+- **IP Address**: Target for port scanning, supports both IPv4 and IPv6.
+- **Threads**: Number of concurrent workers scanning ports.
+- **Channel**: Rust's thread-safe way to send data between threads.
+- **TcpStream::connect**: Attempts to open a TCP connection to a port; success means the port is open.
+- **Error Handling**: Uses `Result` and pattern matching to handle errors gracefully.
+
+DESIGN CHOICES
+--------------
+- Uses Rust's strong type system and error handling for robust CLI parsing.
+- Multithreading for performance.
+- Channels for safe communication between threads.
+- Clear help and error messages for user experience.
+
+THREADS + CHANNEL EXPLAINED
+-----------------
+**What are threads?**
+A thread is a unit of execution within a process. Threads allow a program to perform multiple tasks concurrently. In this CLI tool, each thread scans a subset of ports on the target IP address. Using multiple threads enables the program to scan ports much faster than a single-threaded approach, as several ports are checked simultaneously.
+
+**Effect of different thread values:**
+- A lower thread value (e.g., 1-4) means fewer concurrent scans, which is slower but uses less CPU and memory. This is safer for low-powered systems or when scanning slowly is preferred.
+- A higher thread value (e.g., 50, 100, 500) means more concurrent scans, which is much faster but uses more system resources. This can complete scans quickly but may overwhelm the target or your own system if set too high.
+- The optimal thread value depends on your system's capabilities and the network environment. Too many threads can cause errors or missed ports if the system cannot handle the load.
+
+**In this tool:**
+- The default is 4 threads if not specified.
+- You can set the thread count with the `-t` flag (e.g., `-t 100 192.168.1.1`).
+- Each thread starts scanning from a different port offset and increments by the total number of threads, ensuring all ports are covered efficiently.
+
+The reason we increment by num_threads is so each thread scans a unique subset of ports.
+For example:
+
+Thread 0 scans ports 1, 5, 9...
+
+Thread 1 scans ports 2, 6, 10...
+This prevents overlapping work and distributes the scan load efficiently.
+
+CHANNEL MINI EXPL.
+The channel allows threads to send data (open ports) back to the main thread. 
+It doesn’t coordinate between threads, but rather collects results from all threads into one location.
+========================================
