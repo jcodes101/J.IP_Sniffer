@@ -58,9 +58,7 @@ cargo run -- -t 100 192.168.0.1
 + IP Address	The target IP to scan (v4 or v6) ->	cargo run -- 127.0.0.1
 
 📋 Output
-When scanning, the program will print:
-
-. for every open port found
+When scanning, the program will print: "." for every open port found
 
 A summary list of open ports
 
